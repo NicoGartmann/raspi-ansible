@@ -1,0 +1,56 @@
+---
+- name: Docker auf Raspberry Pi installieren
+  hosts: raspberrypi
+  become: true
+
+  vars:
+    docker_users:
+      - pi
+
+  tasks:
+
+    - name: Erforderliche Pakete installieren
+      apt:
+        name:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - gnupg
+          - lsb-release
+        state: present
+        update_cache: yes
+
+    - name: Docker GPG-Schlüssel hinzufügen
+      ansible.builtin.apt_key:
+        url: https://download.docker.com/linux/debian/gpg
+        state: present
+
+    - name: Docker Repository hinzufügen
+      ansible.builtin.apt_repository:
+        repo: "deb [arch=arm64] https://download.docker.com/linux/debian {{ ansible_distribution_release }} stable"
+        state: present
+        filename: docker
+
+    - name: Docker installieren
+      apt:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+          - docker-compose-plugin
+        state: present
+        update_cache: yes
+
+    - name: Docker-Dienst aktivieren und starten
+      systemd:
+        name: docker
+        enabled: yes
+        state: started
+
+    - name: Benutzer zur Docker-Gruppe hinzufügen
+      user:
+        name: "{{ item }}"
+        groups: docker
+        append: yes
+      loop: "{{ docker_users }}"
+
