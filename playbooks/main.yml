@@ -1,5 +1,5 @@
 ---
-- name: Raspberry Pi System Updates
+- name: Raspberry Pi Setup 
   hosts: raspberrypi
   become: true
 
@@ -15,4 +15,14 @@
     - name: Nicht mehr benötigte Pakete entfernen
       ansible.builtin.apt:
         autoremove: yes
+
+    - name: Standard Pakete installieren
+      ansible.builtin.apt:
+        name:
+          - htop
+          - git 
+          - curl 
+        state: present 
+        update_cache: yes
+        
 
