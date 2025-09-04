@@ -1,0 +1,18 @@
+---
+- name: Raspberry Pi System Updates
+  hosts: raspberrypi
+  become: true
+
+  tasks:
+    - name: Paketliste aktualisieren
+      ansible.builtin.apt:
+        update_cache: yes
+
+    - name: Alle Pakete upgraden
+      ansible.builtin.apt:
+        upgrade: dist
+
+    - name: Nicht mehr benötigte Pakete entfernen
+      ansible.builtin.apt:
+        autoremove: yes
+
