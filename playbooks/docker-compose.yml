@@ -7,13 +7,30 @@
     repo_url: "https://github.com/NicoGartmann/docker-config.git"
     repo_dest: "/opt/services"
 
+  vars_files:
+    - ../group_vars/raspberrypi/vault.yml
+
   tasks:
-    - name: Git-Repo mit Compose-Datei klonen
+    - name: Git-Repo mit Compose-Datei klonen/aktualisieren
       ansible.builtin.git:
         repo: "{{ repo_url }}"
         dest: "{{ repo_dest }}"
         version: main
         force: yes
+
+    - name: Twingate Variablen in .env hinzufügen
+      ansible.builtin.lineinfile:
+        path: "{{ repo_dest }}/.env"
+        regexp: "^{{ item.key }}="
+        line: "{{ item.key }}={{ item.value }}"
+        create: yes
+        owner: root
+        group: root
+        mode: "0600"
+      loop:
+        - { key: "TWINGATE_NETWORK", value: "{{ vault_twingate_network }}" }
+        - { key: "TWINGATE_ACCESS_TOKEN", value: "{{ vault_twingate_access }}" }
+        - { key: "TWINGATE_REFRESH_TOKEN", value: "{{ vault_twingate_refresh }}" }
 
     - name: Docker Compose Pull (Updates holen)
       ansible.builtin.command:
