@@ -54,3 +54,11 @@
         append: yes
       loop: "{{ docker_users }}"
 
+    - name: Wöchentlicher Docker System Prune
+      ansible.builtin.cron:
+        name: "Docker System Prune"
+        weekday: "0"              # 0 = Sonntag
+        hour: "3"
+        minute: "0"
+        job: "docker system prune -af"
+
