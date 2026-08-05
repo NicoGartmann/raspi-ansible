@@ -18,7 +18,23 @@
         version: main
         force: yes
 
-    - name: Twingate Variablen in .env hinzufügen
+    - name: Samba-Freigabeverzeichnis erstellen
+      ansible.builtin.file:
+        path: /mnt/drive/nas
+        state: directory
+        owner: "1000"
+        group: "1000"
+        mode: "0755"
+
+    - name: Rclone-Konfigurationsverzeichnis erstellen
+      ansible.builtin.file:
+        path: /opt/rclone
+        state: directory
+        owner: root
+        group: root
+        mode: "0700"
+
+    - name: Geheimnisse in .env hinzufügen
       ansible.builtin.lineinfile:
         path: "{{ repo_dest }}/.env"
         regexp: "^{{ item.key }}="
@@ -31,6 +47,7 @@
         - { key: "TWINGATE_NETWORK", value: "{{ vault_twingate_network }}" }
         - { key: "TWINGATE_ACCESS_TOKEN", value: "{{ vault_twingate_access }}" }
         - { key: "TWINGATE_REFRESH_TOKEN", value: "{{ vault_twingate_refresh }}" }
+        - { key: "SAMBA_PASSWORD", value: "{{ vault_samba_password }}" }
 
     - name: Docker Compose Pull (Updates holen)
       ansible.builtin.command:
