@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this repo is
 
-Ansible playbooks that provision a single Raspberry Pi (host `raspberrypi` in `inventory/hosts`, currently `192.168.178.10`). There is no application code here — every change is a change to server configuration/state on that physical device.
+Ansible playbooks that provision Raspberry Pis. `inventory/hosts` defines three: `raspberrypi` (home, Docker services, `192.168.178.10`), `homeassistant_pi` (home, Home Assistant, `192.168.0.20`), and `parents_pi` (parents' house, `192.168.178.46`), plus the derived groups `drive_hosts` (Pis with an external drive: `raspberrypi` + `parents_pi`) and `monitoring_targets` (all three). There is no application code here — every change is a change to server configuration/state on those physical devices. All three are reachable from the control machine over Twingate.
 
 ## Commands
 
@@ -23,6 +23,10 @@ ansible-playbook playbooks/docker-compose.yml
 
 # Mount the external drive (by UUID) at /mnt/drive via fstab
 ansible-playbook playbooks/drive.yml
+
+# Install node_exporter (all 3 Pis) and smartctl_exporter (Pis with a drive) as systemd
+# services, scraped by the Prometheus/Grafana stack on the monitoring VPS (separate repo)
+ansible-playbook playbooks/monitoring.yml
 
 # Dry run / check mode before applying changes
 ansible-playbook playbooks/<file>.yml --check --diff
@@ -45,7 +49,8 @@ Never print or write out its decrypted contents in plaintext, and never commit a
 
 ## Architecture notes
 
-- Each file under `playbooks/` is a standalone playbook targeting the `raspberrypi` host group — they are not imported by `playbooks/main.yml` despite its name; run each one independently for its concern (base packages, Docker install, compose deployment, disk mount).
+- Each file under `playbooks/` is a standalone playbook — they are not imported by `playbooks/main.yml` despite its name; run each one independently for its concern (base packages, Docker install, compose deployment, disk mount, monitoring exporters). `main.yml`, `docker.yml`, `docker-compose.yml`, and `drive.yml` target only `raspberrypi`; `monitoring.yml` targets the `monitoring_targets`/`drive_hosts` groups across all three Pis.
+- `playbooks/monitoring.yml` installs `node_exporter`/`smartctl_exporter` as binaries + systemd units (not Docker containers), since `homeassistant_pi` and `parents_pi` aren't assumed to run Docker. Container-level metrics (`cadvisor`) instead live as a service in the `docker-config` repo, next to the other containers on `raspberrypi`.
 - `playbooks/docker-compose.yml` does not contain application/service definitions itself — the actual `docker-compose.yml` and service configs live in the external `NicoGartmann/docker-config` repo, which this playbook clones/pulls to `/opt/services` on the Pi and then runs `docker compose pull && docker compose up -d` against.
 - Task names and comments are written in German; keep new tasks consistent with that convention unless told otherwise.
 - `host_key_checking = False` and `deprecation_warnings = False` are set deliberately in `ansible.cfg`.

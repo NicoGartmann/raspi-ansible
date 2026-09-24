@@ -1,3 +1,20 @@
 [raspberrypi]
 192.168.178.10 ansible_python_interpreter=/usr/bin/python3.11
 
+[homeassistant_pi]
+192.168.0.20 ansible_python_interpreter=/usr/bin/python3.11
+
+[parents_pi]
+192.168.178.46 ansible_python_interpreter=/usr/bin/python3.11
+
+# Pis mit angeschlossener externer Festplatte (für smartctl_exporter)
+[drive_hosts:children]
+raspberrypi
+parents_pi
+
+# Alle Pis, die von der VPS-Monitoring-Stack abgefragt werden
+[monitoring_targets:children]
+raspberrypi
+homeassistant_pi
+parents_pi
+
