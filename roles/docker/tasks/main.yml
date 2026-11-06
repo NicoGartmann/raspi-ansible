@@ -1,0 +1,65 @@
+---
+- name: Architektur-Mapping für Docker-Repository bestimmen
+  ansible.builtin.set_fact:
+    docker_apt_arch: "{{ {'aarch64': 'arm64', 'x86_64': 'amd64', 'armv7l': 'armhf'}[ansible_architecture] | default('arm64') }}"
+    docker_apt_distro: "{{ ansible_distribution | lower }}"
+
+- name: Erforderliche Pakete für Docker-Repository installieren
+  ansible.builtin.apt:
+    name:
+      - apt-transport-https
+      - ca-certificates
+      - curl
+      - gnupg
+      - lsb-release
+    state: present
+    update_cache: true
+
+- name: Keyrings-Verzeichnis /etc/apt/keyrings sicherstellen
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: "0755"
+
+- name: Offiziellen Docker GPG-Schlüssel herunterladen
+  ansible.builtin.get_url:
+    url: "https://download.docker.com/linux/{{ docker_apt_distro }}/gpg"
+    dest: /etc/apt/keyrings/docker.asc
+    mode: "0644"
+
+- name: Docker APT-Repository hinzufügen ({{ docker_apt_distro }} / {{ docker_apt_arch }})
+  ansible.builtin.apt_repository:
+    repo: "deb [arch={{ docker_apt_arch }} signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/{{ docker_apt_distro }} {{ ansible_distribution_release }} stable"
+    state: present
+    filename: docker
+
+- name: Docker Engine und Compose-Plugin installieren
+  ansible.builtin.apt:
+    name:
+      - docker-ce
+      - docker-ce-cli
+      - containerd.io
+      - docker-compose-plugin
+    state: present
+    update_cache: true
+
+- name: Docker-Dienst aktivieren und starten
+  ansible.builtin.systemd:
+    name: docker
+    enabled: true
+    state: started
+
+- name: Benutzer zur Docker-Gruppe hinzufügen
+  ansible.builtin.user:
+    name: "{{ item }}"
+    groups: docker
+    append: true
+  loop: "{{ docker_users | default([admin_user]) }}"
+
+- name: Wöchentlichen Docker System Prune Cronjob einrichten
+  ansible.builtin.cron:
+    name: "Docker System Prune"
+    weekday: "0"
+    hour: "3"
+    minute: "0"
+    job: "docker system prune -af"

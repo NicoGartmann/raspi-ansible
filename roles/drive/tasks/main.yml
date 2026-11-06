@@ -1,0 +1,17 @@
+---
+- name: Mount-Points für konfigurierte Festplatten erstellen
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+  loop: "{{ host_drives | default([]) }}"
+  when: (host_drives | default([]) | length) > 0
+
+- name: fstab-Einträge für konfigurierte Festplatten sicherstellen
+  ansible.builtin.mount:
+    path: "{{ item.path }}"
+    src: "UUID={{ item.uuid }}"
+    fstype: "{{ item.fstype | default('ext4') }}"
+    opts: "{{ item.opts | default('defaults,nofail') }}"
+    state: present
+  loop: "{{ host_drives | default([]) }}"
+  when: (host_drives | default([]) | length) > 0

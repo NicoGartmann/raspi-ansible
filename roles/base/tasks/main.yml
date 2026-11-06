@@ -1,0 +1,122 @@
+---
+- name: Basis-Pakete installieren
+  ansible.builtin.apt:
+    name: "{{ base_packages }}"
+    state: present
+    update_cache: true
+
+- name: Admin-Benutzer {{ admin_user }} mit Sudo-Gruppenzugehörigkeit anlegen
+  ansible.builtin.user:
+    name: "{{ admin_user }}"
+    shell: /bin/bash
+    groups: sudo
+    append: true
+    create_home: true
+    state: present
+
+- name: Passwortloses Sudo (NOPASSWD) für {{ admin_user }} einrichten
+  ansible.builtin.copy:
+    dest: "/etc/sudoers.d/{{ admin_user }}"
+    content: "{{ admin_user }} ALL=(ALL) NOPASSWD: ALL\n"
+    owner: root
+    group: root
+    mode: "0440"
+    validate: /usr/sbin/visudo -cf %s
+
+- name: .ssh-Verzeichnis für {{ admin_user }} sicherstellen
+  ansible.builtin.file:
+    path: "/home/{{ admin_user }}/.ssh"
+    state: directory
+    owner: "{{ admin_user }}"
+    group: "{{ admin_user }}"
+    mode: "0700"
+
+- name: Öffentliche SSH-Schlüssel aus admin_ssh_public_keys hinterlegen
+  ansible.builtin.lineinfile:
+    path: "/home/{{ admin_user }}/.ssh/authorized_keys"
+    line: "{{ item }}"
+    create: true
+    owner: "{{ admin_user }}"
+    group: "{{ admin_user }}"
+    mode: "0600"
+  loop: "{{ admin_ssh_public_keys | default([]) }}"
+  when: (admin_ssh_public_keys | default([]) | length) > 0
+
+- name: Prüfen, ob authorized_keys für {{ admin_user }} bereits existiert
+  ansible.builtin.stat:
+    path: "/home/{{ admin_user }}/.ssh/authorized_keys"
+  register: admin_auth_keys_stat
+
+- name: Fallback-Kandidaten (root / pi / initialer User) für authorized_keys prüfen
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  loop:
+    - "/root/.ssh/authorized_keys"
+    - "/home/pi/.ssh/authorized_keys"
+  register: fallback_auth_keys_stats
+  when:
+    - (admin_ssh_public_keys | default([]) | length) == 0
+    - not admin_auth_keys_stat.stat.exists or admin_auth_keys_stat.stat.size == 0
+
+- name: Bestehende authorized_keys beim Bootstrapping für {{ admin_user }} übernehmen
+  ansible.builtin.copy:
+    src: "{{ item.item }}"
+    dest: "/home/{{ admin_user }}/.ssh/authorized_keys"
+    remote_src: true
+    owner: "{{ admin_user }}"
+    group: "{{ admin_user }}"
+    mode: "0600"
+  loop: "{{ fallback_auth_keys_stats.results | default([]) }}"
+  when:
+    - (admin_ssh_public_keys | default([]) | length) == 0
+    - not admin_auth_keys_stat.stat.exists or admin_auth_keys_stat.stat.size == 0
+    - item.stat is defined and item.stat.exists and item.stat.size > 0
+
+- name: Finale Prüfung der authorized_keys von {{ admin_user }} vor SSH-Härtung
+  ansible.builtin.stat:
+    path: "/home/{{ admin_user }}/.ssh/authorized_keys"
+  register: final_admin_auth_keys
+
+- name: Sicherheits-Gate — Sicherstellen, dass {{ admin_user }} mindestens einen SSH-Schlüssel besitzt
+  ansible.builtin.assert:
+    that:
+      - final_admin_auth_keys.stat.exists
+      - final_admin_auth_keys.stat.size > 0
+    fail_msg: >-
+      ABBRUCH vor SSH-Härtung: Für '{{ admin_user }}' ist unter
+      /home/{{ admin_user }}/.ssh/authorized_keys kein SSH-Schlüssel hinterlegt!
+      Bitte trage deinen Public Key in 'inventory/group_vars/all.yml' unter
+      'admin_ssh_public_keys' ein, um ein Aussperren zu verhindern.
+  when: not ansible_check_mode
+
+- name: SSH-Härtung in /etc/ssh/sshd_config konfigurieren
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: "{{ item.regexp }}"
+    line: "{{ item.line }}"
+    state: present
+    validate: /usr/sbin/sshd -t -f %s
+  loop:
+    - { regexp: "^#?PermitRootLogin", line: "PermitRootLogin no" }
+    - { regexp: "^#?PasswordAuthentication", line: "PasswordAuthentication no" }
+    - { regexp: "^#?PubkeyAuthentication", line: "PubkeyAuthentication yes" }
+  register: sshd_config_main
+
+- name: SSH-Härtung als Drop-in-Konfiguration sicherstellen
+  ansible.builtin.copy:
+    dest: /etc/ssh/sshd_config.d/00-hardening.conf
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      PermitRootLogin no
+      PasswordAuthentication no
+      PubkeyAuthentication yes
+    validate: /usr/sbin/sshd -t -f %s
+  register: sshd_config_dropin
+
+- name: SSH-Dienst bei Konfigurationsänderung neu starten
+  ansible.builtin.systemd:
+    name: ssh
+    state: restarted
+  when: sshd_config_main.changed or sshd_config_dropin.changed
