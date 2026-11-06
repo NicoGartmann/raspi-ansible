@@ -12,6 +12,8 @@
     src: "UUID={{ item.uuid }}"
     fstype: "{{ item.fstype | default('ext4') }}"
     opts: "{{ item.opts | default('defaults,nofail') }}"
+    dump: "{{ item.dump | default('0') }}"
+    passno: "{{ item.passno | default('0') }}"
     state: present
   loop: "{{ host_drives | default([]) }}"
   when: (host_drives | default([]) | length) > 0
