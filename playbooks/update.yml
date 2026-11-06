@@ -45,7 +45,8 @@
           register: update_compose_up
           changed_when: >-
             'Creating' in update_compose_up.stdout or 'Recreating' in update_compose_up.stdout or
-            'Created' in update_compose_up.stderr or 'Started' in update_compose_up.stderr
+            'Created' in update_compose_up.stderr or 'Recreated' in update_compose_up.stderr or
+            'Started' in update_compose_up.stderr
 
     - name: Prüfen, ob ein System-Neustart erforderlich ist (/var/run/reboot-required)
       ansible.builtin.stat:

@@ -6,7 +6,7 @@ host_drives:
     fstype: ntfs
     opts: "defaults,nofail"
     dump: "0"
-    passno: "2"
+    passno: "0"
   - path: /mnt/mediahdd
     uuid: "cbca78f9-2d99-4cad-bdbd-f8d95b5c06a2"
     fstype: ext4

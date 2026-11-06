@@ -58,4 +58,5 @@
       register: compose_up
       changed_when: >-
         'Creating' in compose_up.stdout or 'Recreating' in compose_up.stdout or
-        'Created' in compose_up.stderr or 'Started' in compose_up.stderr
+        'Created' in compose_up.stderr or 'Recreated' in compose_up.stderr or
+        'Started' in compose_up.stderr

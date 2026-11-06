@@ -1,4 +1,11 @@
 ---
+- name: NTFS-Treiber (ntfs-3g) installieren, falls NTFS-Laufwerke konfiguriert sind
+  ansible.builtin.apt:
+    name: ntfs-3g
+    state: present
+    update_cache: true
+  when: (host_drives | default([]) | selectattr('fstype', 'defined') | selectattr('fstype', 'equalto', 'ntfs') | list | length) > 0
+
 - name: Mount-Points für konfigurierte Festplatten erstellen
   ansible.builtin.file:
     path: "{{ item.path }}"
@@ -6,7 +13,7 @@
   loop: "{{ host_drives | default([]) }}"
   when: (host_drives | default([]) | length) > 0
 
-- name: fstab-Einträge für konfigurierte Festplatten sicherstellen
+- name: fstab-Einträge für konfigurierte Festplatten sicherstellen und einhängen
   ansible.builtin.mount:
     path: "{{ item.path }}"
     src: "UUID={{ item.uuid }}"
@@ -14,6 +21,6 @@
     opts: "{{ item.opts | default('defaults,nofail') }}"
     dump: "{{ item.dump | default('0') }}"
     passno: "{{ item.passno | default('0') }}"
-    state: present
+    state: "{{ item.state | default('mounted') }}"
   loop: "{{ host_drives | default([]) }}"
   when: (host_drives | default([]) | length) > 0

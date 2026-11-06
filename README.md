@@ -30,7 +30,7 @@ All managed hosts and functional groups are defined in [`inventory/hosts.yml`](i
 │       ├── raspberrypi/
 │       │   └── vars.yml                     # Drive UUID, compose repo/files, directories, .env mappings
 │       ├── parents_pi/
-│       │   └── vars.yml                     # Placeholders for the 2 external drives & compose stacks
+│       │   └── vars.yml                     # External drive UUIDs & placeholders for compose stacks
 │       └── strato_vps/
 │           └── vars.yml                     # VPS-specific settings (sudo.ws compatibility)
 ├── vaults/
