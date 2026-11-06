@@ -11,25 +11,30 @@ compose_repo_url: "https://github.com/NicoGartmann/docker-config.git"
 compose_repo_dest: "/opt/services"
 compose_repo_version: "main"
 
-# Liste der Compose-Dateien relativ zu 'compose_repo_dest'
-# Unterstützt sowohl die aktuelle Einzeldatei als auch künftige Themen-Stacks
-# (z.B. ["connectivity/docker-compose.yml", "documents/docker-compose.yml"])
+# Liste der Themen-Stacks relativ zu 'compose_repo_dest'
 compose_files:
-  - "docker-compose.yml"
+  - "connectivity/adguard.yml"
+  - "connectivity/proxy.yml"
+  - "connectivity/twingate.yml"
+  - "documents/docker-compose.yml"
+  - "storage/samba.yml"
+  - "monitoring/agent.yml"
 
 # Host-Verzeichnisse, die vor dem Start der Container existieren müssen
 compose_directories:
-  - path: /mnt/drive/nas
-    owner: "1000"
-    group: "1000"
-    mode: "0755"
-  - path: /opt/rclone
-    owner: root
-    group: root
-    mode: "0700"
+  - { path: /opt/adguard/work, owner: root, group: root, mode: "0755" }
+  - { path: /opt/adguard/conf, owner: root, group: root, mode: "0755" }
+  - { path: /opt/nginx-proxy-manager, owner: root, group: root, mode: "0755" }
+  - { path: /mnt/drive/paperless, owner: "1000", group: "1000", mode: "0755" }
+  - { path: /mnt/drive/nas, owner: "1000", group: "1000", mode: "0755" }
 
-# Geheimnisse für {{ compose_repo_dest }}/.env (Werte kommen aus vaults/raspberrypi.yml)
+# Pfade und Geheimnisse für {{ compose_repo_dest }}/.env (vault_* Werte kommen aus vaults/raspberrypi.yml)
 compose_env_vars:
+  - { key: "ADGUARD_CONFIG", value: "/opt/adguard" }
+  - { key: "ADGUARD_WEB_PORT", value: "8080" }
+  - { key: "NPM_DATA", value: "/opt/nginx-proxy-manager" }
+  - { key: "PAPERLESS_DATA", value: "/mnt/drive/paperless" }
+  - { key: "SAMBA_DATA", value: "/mnt/drive/nas" }
   - { key: "TWINGATE_NETWORK", value: "{{ vault_twingate_network }}" }
   - { key: "TWINGATE_ACCESS_TOKEN", value: "{{ vault_twingate_access }}" }
   - { key: "TWINGATE_REFRESH_TOKEN", value: "{{ vault_twingate_refresh }}" }

@@ -15,8 +15,39 @@ host_drives:
     passno: "2"
 
 # Docker Compose Konfiguration (verwendet von 'roles/docker_compose' & 'playbooks/update.yml')
-# Sobald die Themen-basierte Struktur im docker-config Repo steht, hier aktivieren:
-# compose_repo_url: "https://github.com/NicoGartmann/docker-config.git"
-# compose_repo_dest: "/opt/services"
-# compose_files:
-#   - "connectivity/docker-compose.yml"
+compose_repo_url: "https://github.com/NicoGartmann/docker-config.git"
+compose_repo_dest: "/opt/services"
+compose_repo_version: "main"
+
+# Liste der Themen-Stacks relativ zu 'compose_repo_dest'
+compose_files:
+  - "connectivity/adguard.yml"
+  - "connectivity/proxy.yml"
+  - "connectivity/twingate.yml"
+  - "media/docker-compose.yml"
+  - "storage/samba.yml"
+  - "monitoring/agent.yml"
+
+# Host-Verzeichnisse, die vor dem Start der Container existieren müssen
+compose_directories:
+  - { path: /opt/adguard/work, owner: root, group: root, mode: "0755" }
+  - { path: /opt/adguard/conf, owner: root, group: root, mode: "0755" }
+  - { path: /opt/nginx-proxy-manager, owner: root, group: root, mode: "0755" }
+  - { path: /opt/plex, owner: "1000", group: "1000", mode: "0755" }
+  - { path: /opt/overseerr, owner: "1000", group: "1000", mode: "0755" }
+
+# Pfade und Geheimnisse für {{ compose_repo_dest }}/.env (vault_* Werte kommen aus vaults/parents_pi.yml)
+compose_env_vars:
+  - { key: "ADGUARD_CONFIG", value: "/opt/adguard" }
+  - { key: "ADGUARD_WEB_PORT", value: "8080" }
+  - { key: "NPM_DATA", value: "/opt/nginx-proxy-manager" }
+  - { key: "PLEX_CONFIG", value: "/opt/plex" }
+  - { key: "OVERSEERR_CONFIG", value: "/opt/overseerr" }
+  - { key: "PLEX_TV_PATH", value: "/mnt/mediahdd/Serien" }
+  - { key: "PLEX_MOVIES_PATH", value: "/mnt/mediahdd/Filme" }
+  - { key: "PLEX_PICTURES_PATH", value: "/mnt/oldhdd/Bilder" }
+  - { key: "SAMBA_DATA", value: "/mnt" }
+  - { key: "TWINGATE_NETWORK", value: "{{ vault_twingate_network }}" }
+  - { key: "TWINGATE_ACCESS_TOKEN", value: "{{ vault_twingate_access }}" }
+  - { key: "TWINGATE_REFRESH_TOKEN", value: "{{ vault_twingate_refresh }}" }
+  - { key: "SAMBA_PASSWORD", value: "{{ vault_samba_password }}" }

@@ -10,8 +10,14 @@ ansible_become_exe: /usr/bin/sudo.ws
 # kann es einmalig per '-e @vaults/strato_vps.yml -e ansible_become_password="{{ vault_vps_sudo_password }}" --ask-vault-pass'
 # übergeben werden.
 
-# Docker Compose Konfiguration (für künftige Themen-Stacks wie Monitoring auf dem VPS):
+# Docker Compose Konfiguration (verwendet von 'roles/docker_compose' & 'playbooks/update.yml')
+# Sobald die Twingate Connector Tokens in vaults/strato_vps.yml eingetragen sind, aktivieren:
 # compose_repo_url: "https://github.com/NicoGartmann/docker-config.git"
 # compose_repo_dest: "/opt/services"
+# compose_repo_version: "main"
 # compose_files:
-#   - "monitoring/docker-compose.yml"
+#   - "connectivity/twingate.yml"
+# compose_env_vars:
+#   - { key: "TWINGATE_NETWORK", value: "{{ vault_twingate_network }}" }
+#   - { key: "TWINGATE_ACCESS_TOKEN", value: "{{ vault_twingate_access }}" }
+#   - { key: "TWINGATE_REFRESH_TOKEN", value: "{{ vault_twingate_refresh }}" }
