@@ -1,0 +1,17 @@
+---
+# Ubuntu 26.04 LTS nutzt standardmäßig sudo-rs (/usr/bin/sudo), das keine benutzerdefinierten
+# Ansible-Sudo-Prompts (-p) unterstützt. Daher wird das klassische sudo.ws genutzt.
+ansible_become_exe: /usr/bin/sudo.ws
+
+# Hinweis zu Sudo-Passwort:
+# Sobald 'playbooks/base-setup.yml' einmalig gelaufen ist, hat '{{ admin_user }}' (nico)
+# passwortloses Sudo (NOPASSWD: ALL) in /etc/sudoers.d/nico.
+# Falls für das allererste Bootstrapping noch das Sudo-Passwort aus vaults/strato_vps.yml benötigt wird,
+# kann es einmalig per '-e @vaults/strato_vps.yml -e ansible_become_password="{{ vault_vps_sudo_password }}" --ask-vault-pass'
+# übergeben werden.
+
+# Docker Compose Konfiguration (für künftige Themen-Stacks wie Monitoring auf dem VPS):
+# compose_repo_url: "https://github.com/NicoGartmann/docker-config.git"
+# compose_repo_dest: "/opt/services"
+# compose_files:
+#   - "monitoring/docker-compose.yml"

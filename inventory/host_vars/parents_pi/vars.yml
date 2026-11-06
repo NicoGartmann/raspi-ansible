@@ -1,0 +1,19 @@
+---
+# Externe Festplatten für /etc/fstab (verwendet von 'roles/drive')
+# TODO: Sobald Twingate-Verbindung zu parents_pi besteht, die 2 echten UUIDs aus /etc/fstab eintragen
+host_drives: []
+  # - path: /mnt/drive1
+  #   uuid: "HIER-UUID-1-EINTRAGEN"
+  #   fstype: ext4
+  #   opts: "defaults,nofail"
+  # - path: /mnt/drive2
+  #   uuid: "HIER-UUID-2-EINTRAGEN"
+  #   fstype: ext4
+  #   opts: "defaults,nofail"
+
+# Docker Compose Konfiguration (verwendet von 'roles/docker_compose' & 'playbooks/update.yml')
+# Sobald die Themen-basierte Struktur im docker-config Repo steht, hier aktivieren:
+# compose_repo_url: "https://github.com/NicoGartmann/docker-config.git"
+# compose_repo_dest: "/opt/services"
+# compose_files:
+#   - "connectivity/docker-compose.yml"

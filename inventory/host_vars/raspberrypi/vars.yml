@@ -1,0 +1,36 @@
+---
+# Externe Festplatten für /etc/fstab (verwendet von 'roles/drive')
+host_drives:
+  - path: /mnt/drive
+    uuid: "f601b704-44be-4bf4-b5e1-0714e03bcdcb"
+    fstype: ext4
+    opts: "defaults,nofail"
+
+# Docker Compose Konfiguration (verwendet von 'roles/docker_compose' & 'playbooks/update.yml')
+compose_repo_url: "https://github.com/NicoGartmann/docker-config.git"
+compose_repo_dest: "/opt/services"
+compose_repo_version: "main"
+
+# Liste der Compose-Dateien relativ zu 'compose_repo_dest'
+# Unterstützt sowohl die aktuelle Einzeldatei als auch künftige Themen-Stacks
+# (z.B. ["connectivity/docker-compose.yml", "documents/docker-compose.yml"])
+compose_files:
+  - "docker-compose.yml"
+
+# Host-Verzeichnisse, die vor dem Start der Container existieren müssen
+compose_directories:
+  - path: /mnt/drive/nas
+    owner: "1000"
+    group: "1000"
+    mode: "0755"
+  - path: /opt/rclone
+    owner: root
+    group: root
+    mode: "0700"
+
+# Geheimnisse für {{ compose_repo_dest }}/.env (Werte kommen aus vaults/raspberrypi.yml)
+compose_env_vars:
+  - { key: "TWINGATE_NETWORK", value: "{{ vault_twingate_network }}" }
+  - { key: "TWINGATE_ACCESS_TOKEN", value: "{{ vault_twingate_access }}" }
+  - { key: "TWINGATE_REFRESH_TOKEN", value: "{{ vault_twingate_refresh }}" }
+  - { key: "SAMBA_PASSWORD", value: "{{ vault_samba_password }}" }
