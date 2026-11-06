@@ -3,13 +3,6 @@
 # Ansible-Sudo-Prompts (-p) unterstützt. Daher wird das klassische sudo.ws genutzt.
 ansible_become_exe: /usr/bin/sudo.ws
 
-# Hinweis zu Sudo-Passwort:
-# Sobald 'playbooks/base-setup.yml' einmalig gelaufen ist, hat '{{ admin_user }}' (nico)
-# passwortloses Sudo (NOPASSWD: ALL) in /etc/sudoers.d/nico.
-# Falls für das allererste Bootstrapping noch das Sudo-Passwort aus vaults/strato_vps.yml benötigt wird,
-# kann es einmalig per '-e @vaults/strato_vps.yml -e ansible_become_password="{{ vault_vps_sudo_password }}" --ask-vault-pass'
-# übergeben werden.
-
 # Docker Compose Konfiguration (verwendet von 'roles/docker_compose' & 'playbooks/update.yml')
 # Sobald die Twingate Connector Tokens in vaults/strato_vps.yml eingetragen sind, aktivieren:
 # compose_repo_url: "https://github.com/NicoGartmann/docker-config.git"
