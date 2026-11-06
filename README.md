@@ -30,12 +30,13 @@ All managed hosts and functional groups are defined in [`inventory/hosts.yml`](i
 │       ├── raspberrypi/
 │       │   └── vars.yml                     # Drive UUID, compose repo/files, directories, .env mappings
 │       ├── parents_pi/
-│       │   └── vars.yml                     # External drive UUIDs & placeholders for compose stacks
+│       │   └── vars.yml                     # External drive UUIDs, compose repo/files, directories, .env mappings
 │       └── strato_vps/
-│           └── vars.yml                     # VPS-specific settings (sudo.ws compatibility)
+│           └── vars.yml                     # VPS-specific settings (sudo.ws compatibility & compose config)
 ├── vaults/
 │   ├── raspberrypi.yml                      # Encrypted secrets for raspberrypi (Twingate, Samba)
-│   └── strato_vps.yml                       # Encrypted secrets for strato_vps (initial sudo password)
+│   ├── parents_pi.yml                       # Encrypted secrets for parents_pi (Twingate, Samba)
+│   └── strato_vps.yml                       # Encrypted secrets for strato_vps (Twingate)
 ├── roles/
 │   ├── base/tasks/main.yml                  # Base packages, user 'nico', NOPASSWD sudo, SSH keys & hardening
 │   ├── drive/tasks/main.yml                 # Multi-drive /etc/fstab mounting via 'host_drives' list
@@ -75,9 +76,6 @@ ansible-playbook playbooks/base-setup.yml
 
 # First-time bootstrap on a Raspberry Pi that still uses the default 'pi' user
 ansible-playbook playbooks/base-setup.yml --limit raspberrypi -e ansible_user=pi
-
-# First-time bootstrap on strato_vps (if nico still requires the sudo password from vault)
-ansible-playbook playbooks/base-setup.yml --limit strato_vps -e @vaults/strato_vps.yml -e 'ansible_become_password={{ vault_vps_sudo_password }}' --ask-vault-pass
 ```
 *(Tip: Add your SSH public keys from 1Password to `admin_ssh_public_keys` in [`inventory/group_vars/all.yml`](inventory/group_vars/all.yml).)*
 
@@ -94,7 +92,7 @@ ansible-playbook playbooks/docker.yml
 ```
 
 ### 5. Docker Compose Services (`playbooks/docker-compose.yml`)
-Clones/updates [`NicoGartmann/docker-config`](https://github.com/NicoGartmann/docker-config) in `/opt/services`, creates required host directories, writes secrets from `vaults/<host>.yml` to `/opt/services/.env`, and runs `docker compose pull` + `up -d` for all configured `compose_files` (supporting both single `docker-compose.yml` and topic-based stacks like `connectivity/docker-compose.yml`):
+Clones/updates [`NicoGartmann/docker-config`](https://github.com/NicoGartmann/docker-config) in `/opt/services`, creates required host directories, writes paths and secrets from `vaults/<host>.yml` to `/opt/services/.env`, and runs `docker compose --env-file /opt/services/.env -f <file> pull` + `up -d` for all configured topic-based `compose_files` (e.g. `connectivity/adguard.yml`, `documents/docker-compose.yml`, `media/docker-compose.yml`):
 ```bash
 ansible-playbook playbooks/docker-compose.yml --ask-vault-pass
 ```
@@ -130,11 +128,17 @@ Sensitive variables are encrypted using `ansible-vault` inside the [`vaults/`](v
   - `vault_twingate_access`
   - `vault_twingate_refresh`
   - `vault_samba_password`
+- **`vaults/parents_pi.yml`**:
+  - `vault_twingate_network`
+  - `vault_twingate_access`
+  - `vault_twingate_refresh`
+  - `vault_samba_password`
 - **[`vaults/strato_vps.yml`](vaults/strato_vps.yml)**:
-  - `vault_vps_sudo_password`
+  - `vault_twingate_network`, `vault_twingate_access`, `vault_twingate_refresh`
 
-To view or edit encrypted vault files:
+To view, create, or edit encrypted vault files:
 ```bash
 ansible-vault edit vaults/raspberrypi.yml
+ansible-vault create vaults/parents_pi.yml
 ansible-vault edit vaults/strato_vps.yml
 ```

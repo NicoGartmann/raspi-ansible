@@ -30,21 +30,22 @@
         mode: "{{ item.mode | default('0755') }}"
       loop: "{{ compose_directories | default([]) }}"
 
-    - name: Geheimnisse und Umgebungsvariablen in .env eintragen
-      ansible.builtin.lineinfile:
-        path: "{{ compose_repo_dest | default('/opt/services') }}/.env"
-        regexp: "^{{ item.key }}="
-        line: "{{ item.key }}={{ item.value }}"
-        create: true
+    - name: Geheimnisse und Umgebungsvariablen in .env schreiben
+      ansible.builtin.copy:
+        dest: "{{ compose_repo_dest | default('/opt/services') }}/.env"
+        content: |
+          # Verwaltet durch Ansible (roles/docker_compose)
+          {% for item in compose_env_vars | default([]) %}
+          {{ item.key }}={{ item.value }}
+          {% endfor %}
         owner: root
         group: root
         mode: "0600"
-      loop: "{{ compose_env_vars | default([]) }}"
       no_log: true
 
     - name: Docker Compose Pull für konfigurierte Compose-Dateien ausführen
       ansible.builtin.command:
-        cmd: "docker compose -f {{ item }} pull"
+        cmd: "docker compose --env-file {{ compose_repo_dest | default('/opt/services') }}/.env -f {{ item }} pull"
         chdir: "{{ compose_repo_dest | default('/opt/services') }}"
       loop: "{{ compose_files | default(['docker-compose.yml']) }}"
       register: compose_pull
@@ -52,7 +53,7 @@
 
     - name: Docker Compose Up für konfigurierte Compose-Dateien ausführen
       ansible.builtin.command:
-        cmd: "docker compose -f {{ item }} up -d"
+        cmd: "docker compose --env-file {{ compose_repo_dest | default('/opt/services') }}/.env -f {{ item }} up -d"
         chdir: "{{ compose_repo_dest | default('/opt/services') }}"
       loop: "{{ compose_files | default(['docker-compose.yml']) }}"
       register: compose_up

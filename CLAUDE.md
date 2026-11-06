@@ -64,12 +64,14 @@ There is no CI configured. Always run `ansible-playbook --syntax-check` (and `--
 Because `ansible.cfg` points to `./inventory/hosts.yml`, Ansible automatically loads plaintext variables from `inventory/group_vars/` and `inventory/host_vars/<hostname>/`.
 Encrypted `ansible-vault` files live in `vaults/<hostname>.yml` (outside `host_vars/`) so that daily commands like `playbooks/update.yml`, `playbooks/base-setup.yml`, `playbooks/drive.yml`, and `playbooks/docker.yml` run **without** requiring `--ask-vault-pass`. `roles/docker_compose` dynamically loads `vaults/{{ inventory_hostname }}.yml` via `include_vars` when writing `.env` secrets:
 - `vaults/raspberrypi.yml`: `ansible-vault`-encrypted file holding Twingate and Samba credentials (`vault_twingate_network`, `vault_twingate_access`, `vault_twingate_refresh`, `vault_samba_password`) referenced by `inventory/host_vars/raspberrypi/vars.yml`.
-- `vaults/strato_vps.yml`: `ansible-vault`-encrypted file holding `vault_vps_sudo_password` (only needed if bootstrapping before passwordless sudo is active via `-e @vaults/strato_vps.yml --ask-vault-pass`).
+- `vaults/parents_pi.yml`: `ansible-vault`-encrypted file holding host-specific Twingate Connector and Samba credentials (`vault_twingate_network`, `vault_twingate_access`, `vault_twingate_refresh`, `vault_samba_password`) referenced by `inventory/host_vars/parents_pi/vars.yml`.
+- `vaults/strato_vps.yml`: `ansible-vault`-encrypted file for `strato_vps` Twingate Connector credentials (`vault_twingate_network`, `vault_twingate_access`, `vault_twingate_refresh`).
 
 Edit vault files with:
 
 ```bash
 ansible-vault edit vaults/raspberrypi.yml
+ansible-vault edit vaults/parents_pi.yml
 ansible-vault edit vaults/strato_vps.yml
 ```
 
@@ -82,6 +84,6 @@ Never print or write out decrypted contents in plaintext, and never commit a dec
 - **Ubuntu 26.04 `sudo-rs` Compatibility**: `strato_vps` runs Ubuntu 26.04 LTS, which defaults to `sudo-rs` (`/usr/bin/sudo`). Because `sudo-rs` does not support custom `-p` prompts used by Ansible's `sudo` become plugin, `inventory/host_vars/strato_vps/vars.yml` sets `ansible_become_exe: /usr/bin/sudo.ws`.
 - **Multi-Disk & Multi-Compose Support**:
   - `roles/drive` loops over `host_drives` defined in `inventory/host_vars/<host>/vars.yml`.
-  - `roles/docker_compose` clones `compose_repo_url` to `compose_repo_dest` and loops over `compose_files` (supporting both a single `docker-compose.yml` and topic-based compose files such as `connectivity/docker-compose.yml`).
+  - `roles/docker_compose` clones `compose_repo_url` to `compose_repo_dest` and loops over `compose_files` (passing `--env-file {{ compose_repo_dest }}/.env` so topic-based compose files in subdirectories like `connectivity/adguard.yml`, `documents/docker-compose.yml`, and `media/docker-compose.yml` read the central `.env` file).
   - `playbooks/update.yml` updates APT packages and pulls/restarts `compose_files` without rewriting `.env`, so daily updates run without requiring `--ask-vault-pass` (unless a host still has encrypted variables loaded that require vault decryption; note that if `vault.yml` is in `host_vars/<host>/`, Ansible attempts to decrypt all files in `host_vars/<host>/` when targeting that host unless `--ask-vault-pass` is passed).
 - Task names and comments are written in German; keep new tasks consistent with that convention unless told otherwise.
