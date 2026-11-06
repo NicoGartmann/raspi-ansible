@@ -1,65 +1,7 @@
 ---
-- name: Docker Compose Services bereitstellen
-  hosts: raspberrypi
+- name: Docker Compose Services bereitstellen (inkl. Verzeichnisse & .env Secrets)
+  hosts: docker_hosts
   become: true
 
-  vars:
-    repo_url: "https://github.com/NicoGartmann/docker-config.git"
-    repo_dest: "/opt/services"
-
-  vars_files:
-    - ../group_vars/raspberrypi/vault.yml
-
-  tasks:
-    - name: Git-Repo mit Compose-Datei klonen/aktualisieren
-      ansible.builtin.git:
-        repo: "{{ repo_url }}"
-        dest: "{{ repo_dest }}"
-        version: main
-        force: yes
-
-    - name: Samba-Freigabeverzeichnis erstellen
-      ansible.builtin.file:
-        path: /mnt/drive/nas
-        state: directory
-        owner: "1000"
-        group: "1000"
-        mode: "0755"
-
-    - name: Rclone-Konfigurationsverzeichnis erstellen
-      ansible.builtin.file:
-        path: /opt/rclone
-        state: directory
-        owner: root
-        group: root
-        mode: "0700"
-
-    - name: Geheimnisse in .env hinzufügen
-      ansible.builtin.lineinfile:
-        path: "{{ repo_dest }}/.env"
-        regexp: "^{{ item.key }}="
-        line: "{{ item.key }}={{ item.value }}"
-        create: yes
-        owner: root
-        group: root
-        mode: "0600"
-      loop:
-        - { key: "TWINGATE_NETWORK", value: "{{ vault_twingate_network }}" }
-        - { key: "TWINGATE_ACCESS_TOKEN", value: "{{ vault_twingate_access }}" }
-        - { key: "TWINGATE_REFRESH_TOKEN", value: "{{ vault_twingate_refresh }}" }
-        - { key: "SAMBA_PASSWORD", value: "{{ vault_samba_password }}" }
-
-    - name: Docker Compose Pull (Updates holen)
-      ansible.builtin.command:
-        cmd: docker compose pull
-        chdir: "{{ repo_dest }}"
-      register: compose_pull
-      changed_when: "'Downloaded' in compose_pull.stdout"
-
-    - name: Docker Compose up (Start/Update der Container)
-      ansible.builtin.command:
-        cmd: docker compose up -d
-        chdir: "{{ repo_dest }}"
-      register: compose_up
-      changed_when: "'Creating' in compose_up.stdout or 'Recreating' in compose_up.stdout"
-
+  roles:
+    - role: docker_compose

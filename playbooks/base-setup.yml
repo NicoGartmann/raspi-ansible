@@ -1,0 +1,7 @@
+---
+- name: Basis-Setup für alle Hosts (Pakete, User, Sudo, SSH-Härtung)
+  hosts: all
+  become: true
+
+  roles:
+    - role: base
