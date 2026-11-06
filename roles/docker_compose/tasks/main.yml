@@ -44,7 +44,7 @@
 
     - name: Docker Compose Pull für konfigurierte Compose-Dateien ausführen
       ansible.builtin.command:
-        cmd: "docker compose -f {{ item }} pull"
+        cmd: "docker compose --env-file {{ compose_repo_dest | default('/opt/services') }}/.env -f {{ item }} pull"
         chdir: "{{ compose_repo_dest | default('/opt/services') }}"
       loop: "{{ compose_files | default(['docker-compose.yml']) }}"
       register: compose_pull
@@ -52,7 +52,7 @@
 
     - name: Docker Compose Up für konfigurierte Compose-Dateien ausführen
       ansible.builtin.command:
-        cmd: "docker compose -f {{ item }} up -d"
+        cmd: "docker compose --env-file {{ compose_repo_dest | default('/opt/services') }}/.env -f {{ item }} up -d"
         chdir: "{{ compose_repo_dest | default('/opt/services') }}"
       loop: "{{ compose_files | default(['docker-compose.yml']) }}"
       register: compose_up
