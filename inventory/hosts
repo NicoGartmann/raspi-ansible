@@ -18,3 +18,10 @@ raspberrypi
 homeassistant_pi
 parents_pi
 
+[strato_vps]
+217.154.166.48 ansible_user=nico ansible_python_interpreter=/usr/bin/python3.14
+
+[strato_vps:vars]
+ansible_become_password={{ vault_vps_sudo_password }}
+ansible_become_exe=/usr/bin/sudo.ws
+
