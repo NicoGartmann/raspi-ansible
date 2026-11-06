@@ -1,0 +1,62 @@
+---
+- name: Docker Compose Bereitstellung ausführen (wenn compose_repo_url definiert ist)
+  when: compose_repo_url is defined and (compose_repo_url | length) > 0
+  block:
+    - name: Prüfen, ob eine Host-spezifische Vault-Datei existiert
+      ansible.builtin.stat:
+        path: "{{ playbook_dir }}/../vaults/{{ inventory_hostname }}.yml"
+      delegate_to: localhost
+      become: false
+      register: host_vault_file
+
+    - name: Host-spezifische Vault-Geheimnisse laden (falls vorhanden)
+      ansible.builtin.include_vars:
+        file: "{{ playbook_dir }}/../vaults/{{ inventory_hostname }}.yml"
+      when: host_vault_file.stat.exists
+
+    - name: Git-Repository mit Compose-Dateien klonen/aktualisieren
+      ansible.builtin.git:
+        repo: "{{ compose_repo_url }}"
+        dest: "{{ compose_repo_dest | default('/opt/services') }}"
+        version: "{{ compose_repo_version | default('main') }}"
+        force: true
+
+    - name: Benötigte Host-Verzeichnisse für Container erstellen
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        state: directory
+        owner: "{{ item.owner | default('root') }}"
+        group: "{{ item.group | default('root') }}"
+        mode: "{{ item.mode | default('0755') }}"
+      loop: "{{ compose_directories | default([]) }}"
+
+    - name: Geheimnisse und Umgebungsvariablen in .env eintragen
+      ansible.builtin.lineinfile:
+        path: "{{ compose_repo_dest | default('/opt/services') }}/.env"
+        regexp: "^{{ item.key }}="
+        line: "{{ item.key }}={{ item.value }}"
+        create: true
+        owner: root
+        group: root
+        mode: "0600"
+      loop: "{{ compose_env_vars | default([]) }}"
+      no_log: true
+
+    - name: Docker Compose Pull für konfigurierte Compose-Dateien ausführen
+      ansible.builtin.command:
+        cmd: "docker compose -f {{ item }} pull"
+        chdir: "{{ compose_repo_dest | default('/opt/services') }}"
+      loop: "{{ compose_files | default(['docker-compose.yml']) }}"
+      register: compose_pull
+      changed_when: "'Downloaded' in compose_pull.stdout or 'Pulled' in compose_pull.stderr"
+
+    - name: Docker Compose Up für konfigurierte Compose-Dateien ausführen
+      ansible.builtin.command:
+        cmd: "docker compose -f {{ item }} up -d"
+        chdir: "{{ compose_repo_dest | default('/opt/services') }}"
+      loop: "{{ compose_files | default(['docker-compose.yml']) }}"
+      register: compose_up
+      changed_when: >-
+        'Creating' in compose_up.stdout or 'Recreating' in compose_up.stdout or
+        'Created' in compose_up.stderr or 'Recreated' in compose_up.stderr or
+        'Started' in compose_up.stderr

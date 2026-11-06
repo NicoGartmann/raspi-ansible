@@ -1,44 +1,54 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to Claude Code (claude.ai/code) and AI coding assistants when working with code in this repository.
 
 ## What this repo is
 
-Ansible playbooks that provision Raspberry Pis and a rented Strato VPS. `inventory/hosts` defines:
-- Three Raspberry Pis reachable over Twingate:
-  - `raspberrypi` (home, Docker services, `192.168.178.10`)
-  - `homeassistant_pi` (home, Home Assistant, `192.168.0.20`)
-  - `parents_pi` (parents' house, `192.168.178.46`)
-  - Derived groups: `drive_hosts` (Pis with an external drive: `raspberrypi` + `parents_pi`) and `monitoring_targets` (all three Pis).
-- One public-facing VPS:
-  - `strato_vps` (`217.154.166.48`, Ubuntu 26.04 LTS, user `nico`).
+Role-based Ansible playbooks that provision and maintain a fleet of Raspberry Pis and a rented Strato VPS. `inventory/hosts.yml` defines logical hostnames and functional groups:
+- **Raspberry Pis (`pis`)** reachable over Twingate:
+  - `raspberrypi` (`192.168.178.10` — Home server running Docker Compose services and an external USB drive)
+  - `parents_pi` (`192.168.178.46` — Off-site Pi at parents' house with two external drives and Docker Compose)
+  - *(Commented out / excluded)*: `homeassistant_pi` (`192.168.0.20` — Home Assistant OS, not a Debian/Ubuntu target)
+- **Public VPS (`vps`)**:
+  - `strato_vps` (`217.154.166.48` — Ubuntu 26.04 LTS, future Prometheus/Grafana monitoring server)
+- **Functional Groups**:
+  - `drive_hosts`: `raspberrypi`, `parents_pi`
+  - `docker_hosts`: `raspberrypi`, `parents_pi`, `strato_vps`
+  - `monitoring_targets`: `raspberrypi`, `parents_pi`
 
 There is no application code here — every change is a change to server configuration/state on those devices.
 
 ## Commands
 
-Run all commands from the repo root (`ansible.cfg` sets `inventory = ./inventory/hosts` and `remote_user = pi`).
+Run all commands from the repo root (`ansible.cfg` sets `inventory = ./inventory/hosts.yml`, `remote_user = nico`, and `roles_path = ./roles`).
 
 ```bash
-# Base OS setup on raspberrypi: apt update/upgrade/autoremove + install htop/git/curl
-ansible-playbook playbooks/main.yml
+# Daily/regular maintenance: apt update/dist-upgrade/autoremove + docker compose pull/up + reboot check
+ansible-playbook playbooks/update.yml
 
-# Install Docker, add `pi` to the docker group, set up weekly `docker system prune -af` cron
-ansible-playbook playbooks/docker.yml
+# Update only a single host
+ansible-playbook playbooks/update.yml --limit strato_vps
 
-# Deploy/update docker-compose services from the separate NicoGartmann/docker-config repo,
-# writes Twingate/Samba secrets into /opt/services/.env, then `docker compose pull` + `up -d`
-ansible-playbook playbooks/docker-compose.yml --ask-vault-pass
+# Base OS setup on all hosts (or a single host with --limit): base packages, user 'nico', NOPASSWD sudo, SSH keys & hardening
+ansible-playbook playbooks/base-setup.yml
 
-# Mount the external drive (by UUID) at /mnt/drive via fstab
+# First-time bootstrap on an existing Pi that still only has the 'pi' user
+ansible-playbook playbooks/base-setup.yml --limit raspberrypi -e ansible_user=pi
+
+# Mount external drives (by UUID) via /etc/fstab based on 'host_drives' in host_vars
 ansible-playbook playbooks/drive.yml
 
-# Install node_exporter (all 3 Pis) and smartctl_exporter (Pis with a drive) as systemd
-# services, scraped by the Prometheus/Grafana stack on the monitoring VPS (separate repo)
-ansible-playbook playbooks/monitoring.yml
+# Install Docker CE + Compose plugin (auto-detects Debian/Ubuntu and arm64/amd64) + weekly prune cron
+ansible-playbook playbooks/docker.yml
 
-# Base OS setup, user creation (`nico` + sudo + SSH keys), and SSH hardening on strato_vps
-ansible-playbook playbooks/vps-setup.yml --ask-vault-pass
+# Deploy/update docker-compose services + write secrets from Ansible Vault to .env
+ansible-playbook playbooks/docker-compose.yml --ask-vault-pass
+
+# Run complete setup across the fleet (base + drive + docker + docker_compose)
+ansible-playbook playbooks/site.yml --ask-vault-pass
+
+# Install node_exporter and smartctl_exporter (currently legacy/to-be-refactored)
+ansible-playbook playbooks/monitoring.yml
 
 # Dry run / check mode before applying changes
 ansible-playbook playbooks/<file>.yml --check --diff
@@ -47,31 +57,31 @@ ansible-playbook playbooks/<file>.yml --check --diff
 ansible-playbook playbooks/<file>.yml --syntax-check
 ```
 
-There are no lint or test tooling configured (no `ansible-lint` config, no CI). If invoked, `ansible-playbook --syntax-check` and `--check --diff` are the practical substitutes for "testing" a change before it touches the real servers.
+There is no CI configured. Always run `ansible-playbook --syntax-check` (and `--check --diff` against live hosts when applicable) to validate changes.
 
-## Secrets
+## Secrets (Ansible Vault)
 
-- `group_vars/raspberrypi/vault.yml` is an `ansible-vault`-encrypted file holding Twingate and Samba credentials (`vault_twingate_network`, `vault_twingate_access`, `vault_twingate_refresh`, `vault_samba_password`) consumed by `playbooks/docker-compose.yml`.
-- `group_vars/strato_vps/vault.yml` is an `ansible-vault`-encrypted file holding the VPS sudo password (`vault_vps_sudo_password`) consumed by `playbooks/vps-setup.yml` and `strato_vps` privilege escalation.
+Because `ansible.cfg` points to `./inventory/hosts.yml`, Ansible automatically loads plaintext variables from `inventory/group_vars/` and `inventory/host_vars/<hostname>/`.
+Encrypted `ansible-vault` files live in `vaults/<hostname>.yml` (outside `host_vars/`) so that daily commands like `playbooks/update.yml`, `playbooks/base-setup.yml`, `playbooks/drive.yml`, and `playbooks/docker.yml` run **without** requiring `--ask-vault-pass`. `roles/docker_compose` dynamically loads `vaults/{{ inventory_hostname }}.yml` via `include_vars` when writing `.env` secrets:
+- `vaults/raspberrypi.yml`: `ansible-vault`-encrypted file holding Twingate and Samba credentials (`vault_twingate_network`, `vault_twingate_access`, `vault_twingate_refresh`, `vault_samba_password`) referenced by `inventory/host_vars/raspberrypi/vars.yml`.
+- `vaults/strato_vps.yml`: `ansible-vault`-encrypted file holding `vault_vps_sudo_password` (only needed if bootstrapping before passwordless sudo is active via `-e @vaults/strato_vps.yml --ask-vault-pass`).
 
 Edit vault files with:
 
 ```bash
-ansible-vault edit group_vars/raspberrypi/vault.yml
-ansible-vault edit group_vars/strato_vps/vault.yml
+ansible-vault edit vaults/raspberrypi.yml
+ansible-vault edit vaults/strato_vps.yml
 ```
 
 Never print or write out decrypted contents in plaintext, and never commit a decrypted version.
 
 ## Architecture notes
 
-- Each file under `playbooks/` is a standalone playbook — they are not imported by `playbooks/main.yml` despite its name; run each one independently for its concern:
-  - `main.yml`, `docker.yml`, `docker-compose.yml`, and `drive.yml` target only `raspberrypi`.
-  - `monitoring.yml` targets the `monitoring_targets`/`drive_hosts` groups across all three Pis.
-  - `vps-setup.yml` targets `strato_vps`.
-- Note on `group_vars/`: Because `ansible.cfg` points to `./inventory/hosts`, files under `./group_vars/` at the repo root are not auto-loaded by inventory path discovery and are explicitly included via `vars_files` in playbooks that need them (`docker-compose.yml`, `vps-setup.yml`).
-- `strato_vps` runs Ubuntu 26.04 LTS, which defaults to `sudo-rs` (`/usr/bin/sudo`). Because `sudo-rs` does not support custom `-p` prompts used by Ansible's `sudo` become plugin, `[strato_vps:vars]` in `inventory/hosts` sets `ansible_become_exe=/usr/bin/sudo.ws` (traditional C `sudo`) along with `ansible_become_password={{ vault_vps_sudo_password }}`.
-- `playbooks/monitoring.yml` installs `node_exporter`/`smartctl_exporter` as binaries + systemd units (not Docker containers), since `homeassistant_pi` and `parents_pi` aren't assumed to run Docker. Container-level metrics (`cadvisor`) instead live as a service in the `docker-config` repo, next to the other containers on `raspberrypi`.
-- `playbooks/docker-compose.yml` does not contain application/service definitions itself — the actual `docker-compose.yml` and service configs live in the external `NicoGartmann/docker-config` repo, which this playbook clones/pulls to `/opt/services` on the Pi and then runs `docker compose pull && docker compose up -d` against.
+- **Unified Admin User (`nico`)**: Managed via `admin_user` in `inventory/group_vars/all.yml`. `roles/base` creates `nico` with `/etc/sudoers.d/nico` (`NOPASSWD: ALL`) and configures SSH hardening (`PermitRootLogin no`, `PasswordAuthentication no`).
+- **SSH Lockout Protection**: `roles/base` installs public keys from `admin_ssh_public_keys` in `inventory/group_vars/all.yml`. If that list is empty during initial bootstrapping, it falls back to copying `authorized_keys` from `/root/.ssh/` or `/home/pi/.ssh/` on the remote host and asserts that `/home/nico/.ssh/authorized_keys` is non-empty before restarting `sshd`.
+- **Ubuntu 26.04 `sudo-rs` Compatibility**: `strato_vps` runs Ubuntu 26.04 LTS, which defaults to `sudo-rs` (`/usr/bin/sudo`). Because `sudo-rs` does not support custom `-p` prompts used by Ansible's `sudo` become plugin, `inventory/host_vars/strato_vps/vars.yml` sets `ansible_become_exe: /usr/bin/sudo.ws`.
+- **Multi-Disk & Multi-Compose Support**:
+  - `roles/drive` loops over `host_drives` defined in `inventory/host_vars/<host>/vars.yml`.
+  - `roles/docker_compose` clones `compose_repo_url` to `compose_repo_dest` and loops over `compose_files` (supporting both a single `docker-compose.yml` and topic-based compose files such as `connectivity/docker-compose.yml`).
+  - `playbooks/update.yml` updates APT packages and pulls/restarts `compose_files` without rewriting `.env`, so daily updates run without requiring `--ask-vault-pass` (unless a host still has encrypted variables loaded that require vault decryption; note that if `vault.yml` is in `host_vars/<host>/`, Ansible attempts to decrypt all files in `host_vars/<host>/` when targeting that host unless `--ask-vault-pass` is passed).
 - Task names and comments are written in German; keep new tasks consistent with that convention unless told otherwise.
-- `host_key_checking = False` and `deprecation_warnings = False` are set deliberately in `ansible.cfg`.

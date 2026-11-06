@@ -1,23 +1,7 @@
 ---
-- name: Festplatte automatisch mounten 
-  hosts: raspberrypi
+- name: Externe Festplatten automatisch über /etc/fstab mounten
+  hosts: drive_hosts
   become: true
 
-  vars:
-    disk_uuid: "f601b704-44be-4bf4-b5e1-0714e03bcdcb"
-
-  tasks:
-
-    - name: Mount Point erstellen 
-      file:
-        path: /mnt/drive
-        state: directory
-
-    - name: fstab Eintrag hinzufügen 
-      ansible.builtin.mount:
-        path: /mnt/drive
-        src: "UUID={{ disk_uuid }}"
-        fstype: ext4
-        opts: defaults,nofail
-        state: present
-
+  roles:
+    - role: drive

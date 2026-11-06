@@ -1,0 +1,59 @@
+---
+- name: System-Updates und Docker-Compose-Updates auf allen Hosts
+  hosts: all
+  become: true
+
+  tasks:
+    - name: Paketliste aktualisieren
+      ansible.builtin.apt:
+        update_cache: true
+
+    - name: Alle Systempakete upgraden (dist-upgrade)
+      ansible.builtin.apt:
+        upgrade: dist
+
+    - name: Nicht mehr benötigte Pakete entfernen (autoremove)
+      ansible.builtin.apt:
+        autoremove: true
+
+    - name: Docker Compose Services aktualisieren (wenn Host in docker_hosts und compose_repo_url definiert)
+      when:
+        - "'docker_hosts' in group_names"
+        - compose_repo_url is defined
+        - (compose_repo_url | length) > 0
+      block:
+        - name: Git-Repository mit Compose-Dateien aktualisieren
+          ansible.builtin.git:
+            repo: "{{ compose_repo_url }}"
+            dest: "{{ compose_repo_dest | default('/opt/services') }}"
+            version: "{{ compose_repo_version | default('main') }}"
+            force: true
+
+        - name: Docker Compose Pull für konfigurierte Compose-Dateien
+          ansible.builtin.command:
+            cmd: "docker compose -f {{ item }} pull"
+            chdir: "{{ compose_repo_dest | default('/opt/services') }}"
+          loop: "{{ compose_files | default(['docker-compose.yml']) }}"
+          register: update_compose_pull
+          changed_when: "'Downloaded' in update_compose_pull.stdout or 'Pulled' in update_compose_pull.stderr"
+
+        - name: Docker Compose Up für konfigurierte Compose-Dateien
+          ansible.builtin.command:
+            cmd: "docker compose -f {{ item }} up -d"
+            chdir: "{{ compose_repo_dest | default('/opt/services') }}"
+          loop: "{{ compose_files | default(['docker-compose.yml']) }}"
+          register: update_compose_up
+          changed_when: >-
+            'Creating' in update_compose_up.stdout or 'Recreating' in update_compose_up.stdout or
+            'Created' in update_compose_up.stderr or 'Recreated' in update_compose_up.stderr or
+            'Started' in update_compose_up.stderr
+
+    - name: Prüfen, ob ein System-Neustart erforderlich ist (/var/run/reboot-required)
+      ansible.builtin.stat:
+        path: /var/run/reboot-required
+      register: reboot_required_file
+
+    - name: Hinweis ausgeben, falls ein Neustart erforderlich ist
+      ansible.builtin.debug:
+        msg: "HINWEIS: Für {{ inventory_hostname }} ist ein System-Neustart erforderlich (/var/run/reboot-required existiert)."
+      when: reboot_required_file.stat.exists

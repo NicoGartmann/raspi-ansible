@@ -1,0 +1,22 @@
+---
+# Externe Festplatten für /etc/fstab (verwendet von 'roles/drive')
+host_drives:
+  - path: /mnt/oldhdd
+    uuid: "7E989AB5989A6C01"
+    fstype: ntfs
+    opts: "defaults,nofail"
+    dump: "0"
+    passno: "0"
+  - path: /mnt/mediahdd
+    uuid: "cbca78f9-2d99-4cad-bdbd-f8d95b5c06a2"
+    fstype: ext4
+    opts: "defaults,nofail"
+    dump: "0"
+    passno: "2"
+
+# Docker Compose Konfiguration (verwendet von 'roles/docker_compose' & 'playbooks/update.yml')
+# Sobald die Themen-basierte Struktur im docker-config Repo steht, hier aktivieren:
+# compose_repo_url: "https://github.com/NicoGartmann/docker-config.git"
+# compose_repo_dest: "/opt/services"
+# compose_files:
+#   - "connectivity/docker-compose.yml"

@@ -1,0 +1,25 @@
+---
+# Einheitlicher Admin-Benutzer für alle verwalteten Systeme
+admin_user: nico
+
+# Öffentliche SSH-Schlüssel (z.B. aus 1Password), die auf allen Hosts für '{{ admin_user }}'
+# in ~/.ssh/authorized_keys hinterlegt werden.
+# Hinweis: Solange diese Liste leer ist, kopiert 'roles/base' beim Bootstrapping automatisch
+# die bestehenden authorized_keys des initialen Benutzers (z.B. 'root' oder 'pi').
+admin_ssh_public_keys:
+  # - "ssh-ed25519 AAAA... nico@1password"
+  - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIDz8ZmfRXu6mVHzjfzQOcwJizHp/27ACKdqYxpmo7zYN nico@nixos
+  - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFwVkY7AQhgiGshY4Urft750TATpN7d5i2hYkL9Vq7yE nicog@Nico-PC
+  - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIH3vkZJeQQ7mL88YyDhipnBtEJdeW0WqS1Xw+kpQtcTE nico@nixos
+
+# Standard-Pakete, die im Basis-Setup auf allen Debian/Ubuntu-Systemen installiert werden
+base_packages:
+  - sudo
+  - htop
+  - git
+  - curl
+  - ca-certificates
+
+# Benutzer, die auf Docker-Hosts zur 'docker'-Gruppe hinzugefügt werden
+docker_users:
+  - "{{ admin_user }}"

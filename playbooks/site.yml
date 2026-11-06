@@ -1,0 +1,24 @@
+---
+- name: Basis-Setup auf allen Hosts
+  hosts: all
+  become: true
+  roles:
+    - role: base
+
+- name: Externe Festplatten auf Drive-Hosts einbinden
+  hosts: drive_hosts
+  become: true
+  roles:
+    - role: drive
+
+- name: Docker Engine auf Docker-Hosts installieren
+  hosts: docker_hosts
+  become: true
+  roles:
+    - role: docker
+
+- name: Docker Compose Stacks auf Docker-Hosts bereitstellen
+  hosts: docker_hosts
+  become: true
+  roles:
+    - role: docker_compose
