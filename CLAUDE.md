@@ -65,7 +65,7 @@ Because `ansible.cfg` points to `./inventory/hosts.yml`, Ansible automatically l
 Encrypted `ansible-vault` files live in `vaults/<hostname>.yml` (outside `host_vars/`) so that daily commands like `playbooks/update.yml`, `playbooks/base-setup.yml`, `playbooks/drive.yml`, and `playbooks/docker.yml` run **without** requiring `--ask-vault-pass`. `roles/docker_compose` dynamically loads `vaults/{{ inventory_hostname }}.yml` via `include_vars` when writing `.env` secrets:
 - `vaults/raspberrypi.yml`: `ansible-vault`-encrypted file holding Twingate and Samba credentials (`vault_twingate_network`, `vault_twingate_access`, `vault_twingate_refresh`, `vault_samba_password`) referenced by `inventory/host_vars/raspberrypi/vars.yml`.
 - `vaults/parents_pi.yml`: `ansible-vault`-encrypted file holding host-specific Twingate Connector and Samba credentials (`vault_twingate_network`, `vault_twingate_access`, `vault_twingate_refresh`, `vault_samba_password`) referenced by `inventory/host_vars/parents_pi/vars.yml`.
-- `vaults/strato_vps.yml`: `ansible-vault`-encrypted file holding `vault_vps_sudo_password` (only needed if bootstrapping before passwordless sudo is active via `-e @vaults/strato_vps.yml --ask-vault-pass`) and future Twingate Connector credentials for `strato_vps`.
+- `vaults/strato_vps.yml`: `ansible-vault`-encrypted file for `strato_vps` Twingate Connector credentials (`vault_twingate_network`, `vault_twingate_access`, `vault_twingate_refresh`).
 
 Edit vault files with:
 

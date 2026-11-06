@@ -36,7 +36,7 @@ All managed hosts and functional groups are defined in [`inventory/hosts.yml`](i
 ├── vaults/
 │   ├── raspberrypi.yml                      # Encrypted secrets for raspberrypi (Twingate, Samba)
 │   ├── parents_pi.yml                       # Encrypted secrets for parents_pi (Twingate, Samba)
-│   └── strato_vps.yml                       # Encrypted secrets for strato_vps (initial sudo password, Twingate)
+│   └── strato_vps.yml                       # Encrypted secrets for strato_vps (Twingate)
 ├── roles/
 │   ├── base/tasks/main.yml                  # Base packages, user 'nico', NOPASSWD sudo, SSH keys & hardening
 │   ├── drive/tasks/main.yml                 # Multi-drive /etc/fstab mounting via 'host_drives' list
@@ -76,9 +76,6 @@ ansible-playbook playbooks/base-setup.yml
 
 # First-time bootstrap on a Raspberry Pi that still uses the default 'pi' user
 ansible-playbook playbooks/base-setup.yml --limit raspberrypi -e ansible_user=pi
-
-# First-time bootstrap on strato_vps (if nico still requires the sudo password from vault)
-ansible-playbook playbooks/base-setup.yml --limit strato_vps -e @vaults/strato_vps.yml -e 'ansible_become_password={{ vault_vps_sudo_password }}' --ask-vault-pass
 ```
 *(Tip: Add your SSH public keys from 1Password to `admin_ssh_public_keys` in [`inventory/group_vars/all.yml`](inventory/group_vars/all.yml).)*
 
@@ -137,8 +134,7 @@ Sensitive variables are encrypted using `ansible-vault` inside the [`vaults/`](v
   - `vault_twingate_refresh`
   - `vault_samba_password`
 - **[`vaults/strato_vps.yml`](vaults/strato_vps.yml)**:
-  - `vault_vps_sudo_password`
-  - *(künftig)* `vault_twingate_network`, `vault_twingate_access`, `vault_twingate_refresh`
+  - `vault_twingate_network`, `vault_twingate_access`, `vault_twingate_refresh`
 
 To view, create, or edit encrypted vault files:
 ```bash
